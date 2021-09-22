@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">BibleSpeaks</string>
+    <string name="nextButton">next</string>
+    <string name="playButton">play</string>
+    <string name="prev">prev</string>
+    <string name="text">Read at 4am-7am, 5pm-10pm</string>
+    <string name="button">update</string>
+</resources>
