@@ -1,14 +1,13 @@
 package com.example.bs1;
 
-import static android.content.Context.ALARM_SERVICE;
 import static com.example.bs1.MainActivity.imageButton;
 import static com.example.bs1.MainActivity.imageButton2;
 import static com.example.bs1.MainActivity.imageButton3;
+import static com.example.bs1.MainActivity.setAlarming;
 import static com.example.bs1.MainActivity.text;
 import static com.example.bs1.MainActivity.spinner2;
 
 import android.annotation.SuppressLint;
-import android.app.AlarmManager;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -47,7 +46,7 @@ public class playBackground extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         sharedpreferences = context.getSharedPreferences("store", Context.MODE_PRIVATE);
         editor = sharedpreferences.edit();
-        mediaSessionCompat = new MediaSessionCompat(context, "mytagmediam9");
+        mediaSessionCompat = new MediaSessionCompat(context, "My_Media_tag");
         notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         mStorageRef = FirebaseStorage.getInstance().getReference();
         calendar = Calendar.getInstance();
@@ -82,29 +81,15 @@ public class playBackground extends BroadcastReceiver {
                         next(context);
                         break;
                     case "alarm":
-                        if (((calendar.get(Calendar.HOUR_OF_DAY) > 3 && calendar.get(Calendar.HOUR_OF_DAY) < 8) || (calendar.get(Calendar.HOUR_OF_DAY) > 16 && calendar.get(Calendar.HOUR_OF_DAY) < 23)) && sharedpreferences.getBoolean("onOff",true))
-                            context.sendBroadcast(new Intent(context, playBackground.class).setAction("playPause"));
+                        //if (sharedpreferences.getBoolean("onOff",true))
+                        context.sendBroadcast(new Intent(context, playBackground.class).setAction("playPause"));
+                        setAlarming(context);
                         break;
 
                     case "android.intent.action.BOOT_COMPLETED":
-
-                        Intent notifyIntent = new Intent(context, playBackground.class).setAction("alarm");
-
-                        @SuppressLint("UnspecifiedImmutableFlag") final PendingIntent notifyPendingIntent = PendingIntent.getBroadcast(context, 1111, notifyIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-                        final AlarmManager alarmManager = (AlarmManager) context.getSystemService(ALARM_SERVICE);
-
-                        long repeatInterval = AlarmManager.INTERVAL_HOUR;
-
-                        Calendar calendar = Calendar.getInstance();
-                        calendar.set(Calendar.HOUR_OF_DAY, (calendar.get(Calendar.HOUR_OF_DAY) + 1));
-                        calendar.set(Calendar.MINUTE, 0);
-                        calendar.set(Calendar.SECOND, 0);
-
-                        alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeatInterval, notifyPendingIntent);
-                        editor.putBoolean("one", false);
-                        editor.commit();
-
+                        if (sharedpreferences.getBoolean("onOff",true))
+                        setAlarming(context);
+                        //keepBoolSharedPreferences("one",false);
                         break;
                 }
             }
@@ -193,7 +178,7 @@ public class playBackground extends BroadcastReceiver {
 
                 mediaPlayer.setOnPreparedListener(mediaPlayer -> {
                     mediaPlayer.start();
-                    keepBoolSharedPreferences("once",true);
+                    keepBoolSharedPreferences();
                     text = topic;
                     if (sharedpreferences.getBoolean("activity", true)) {
                         enableButtons();
@@ -352,8 +337,8 @@ public class playBackground extends BroadcastReceiver {
         editor.putString(keyStr1, valueStr1);
         editor.apply();
     }
-    private void keepBoolSharedPreferences(String keyStr2, boolean valueBool) {
-        editor.putBoolean(keyStr2, valueBool);
+    private void keepBoolSharedPreferences() {
+        editor.putBoolean("once", true);
         editor.apply();
     }
 }

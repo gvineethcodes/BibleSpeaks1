@@ -11,6 +11,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.view.View;
@@ -36,12 +37,14 @@ public class MainActivity extends AppCompatActivity {
     TextView textView;
     @SuppressLint("StaticFieldLeak")
     public static ImageButton imageButton, imageButton2, imageButton3;
+    public static AlarmManager staticAlarmManager;
+    public static Intent staticIntent;
+    public static PendingIntent staticPendingIntent;
     public static String text = "";
     StorageReference mStorageRef;
     SharedPreferences sharedpreferences;
     SharedPreferences.Editor editor;
     Button button;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
                             for (StorageReference prefix : listResult.getPrefixes()) {
                                 String name = prefix.getName();
                                 if (name.contains("https")) keepStringSharedPreferences("url",name.replaceAll("[*]","/"));
-                                else keepFloatSharedPreferences("version", Float.parseFloat(name));
+                                else keepFloatSharedPreferences(Float.parseFloat(name));
                             }
                         })
                         .addOnFailureListener(e -> textView.setText(e.toString()));
@@ -135,8 +138,6 @@ public class MainActivity extends AppCompatActivity {
                         keepBoolSharedPreferences("once",false);
                     }
                     int duration = mediaPlayer.getCurrentPosition();
-//                    int minutes = (int) (duration % (1000 * 60 * 60)) / (1000 * 60);
-//                    int seconds = (int) ((duration % (1000 * 60 * 60)) % (1000 * 60) / 1000);
                     s[0] = ""+duration % 3600000 / 60000+" : "+duration % 3600000 % 60000 / 1000+" / "+ t[0] + "\n";
                     if(mediaPlayer.isPlaying()) seekBar.setProgress(duration);
 
@@ -152,29 +153,20 @@ public class MainActivity extends AppCompatActivity {
 
         if (sharedpreferences.getBoolean("one", true)) {
 
-            Intent notifyIntent = new Intent(this, playBackground.class).setAction("alarm");
+            setAlarming(this);
+            keepBoolSharedPreferences("one",false);
 
-            @SuppressLint("UnspecifiedImmutableFlag") final PendingIntent notifyPendingIntent = PendingIntent.getBroadcast(this, 1, notifyIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-
-            final AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-
-            long repeatInterval = AlarmManager.INTERVAL_HOUR;
-
-            Calendar calendar = Calendar.getInstance();
-            calendar.set(Calendar.HOUR_OF_DAY, (calendar.get(Calendar.HOUR_OF_DAY) + 1));
-            //calendar.set(Calendar.MINUTE, (calendar.get(Calendar.MINUTE) + 2));
-            calendar.set(Calendar.MINUTE, 0);
-            calendar.set(Calendar.SECOND, 0);
-
-            alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), repeatInterval, notifyPendingIntent);
-            editor.putBoolean("one", false);
-            editor.commit();
         }
 
 
         button.setOnClickListener(view -> startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(sharedpreferences.getString("url","http://www.google.com")))));
 
-        checkBox.setOnCheckedChangeListener((compoundButton, b) -> keepBoolSharedPreferences("onOff",b));
+        checkBox.setOnCheckedChangeListener((compoundButton, b) -> {
+            MainActivity.this.keepBoolSharedPreferences("onOff", b);
+            if(b) setAlarming(MainActivity.this);
+            else if (staticPendingIntent != null && staticAlarmManager != null)
+                staticAlarmManager.cancel(staticPendingIntent);
+        });
 
         seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -222,8 +214,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         sendBroadcast(new Intent(getApplicationContext(), playBackground.class).setAction("stop"));
-
-
     }
 
     private void showButton(int show) {
@@ -247,8 +237,8 @@ public class MainActivity extends AppCompatActivity {
         editor.putInt(keyStr, valueInt);
         editor.apply();
     }
-    private void keepFloatSharedPreferences(String keyStr, float valuef) {
-        editor.putFloat(keyStr, valuef);
+    private void keepFloatSharedPreferences(float value) {
+        editor.putFloat("version", value);
         editor.apply();
     }
 
@@ -260,5 +250,44 @@ public class MainActivity extends AppCompatActivity {
     private void keepBoolSharedPreferences(String keyStr2, boolean valueBool) {
         editor.putBoolean(keyStr2, valueBool);
         editor.apply();
+    }
+
+    @SuppressLint("UnspecifiedImmutableFlag")
+    public static void setAlarming(Context context){
+
+        staticIntent = new Intent(context, playBackground.class).setAction("alarm");
+
+        staticPendingIntent = PendingIntent.getBroadcast(context, 0, staticIntent, 0);
+
+        staticAlarmManager = (AlarmManager) context.getSystemService(ALARM_SERVICE);
+
+        Calendar calendar = Calendar.getInstance();
+
+        if (calendar.get(Calendar.HOUR_OF_DAY) <=2) {
+            calendar.set(Calendar.HOUR_OF_DAY, 4);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+        } else if((calendar.get(Calendar.HOUR_OF_DAY) >= 3 && calendar.get(Calendar.HOUR_OF_DAY) <= 6) || (calendar.get(Calendar.HOUR_OF_DAY) >= 16 && calendar.get(Calendar.HOUR_OF_DAY) <= 21)) {
+            calendar.set(Calendar.HOUR_OF_DAY, (calendar.get(Calendar.HOUR_OF_DAY) + 1));
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+        } else if(calendar.get(Calendar.HOUR_OF_DAY) >= 7 && calendar.get(Calendar.HOUR_OF_DAY) <= 15) {
+            calendar.set(Calendar.HOUR_OF_DAY, 17);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+        } else{
+            calendar.set(Calendar.DAY_OF_WEEK,(calendar.get(Calendar.DAY_OF_WEEK) + 1));
+            calendar.set(Calendar.HOUR_OF_DAY, 4);
+            calendar.set(Calendar.MINUTE, 0);
+            calendar.set(Calendar.SECOND, 0);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M)
+            staticAlarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), staticPendingIntent);
+        else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+            staticAlarmManager.setExact(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), staticPendingIntent);
+        else
+            staticAlarmManager.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), staticPendingIntent);
+
     }
 }
